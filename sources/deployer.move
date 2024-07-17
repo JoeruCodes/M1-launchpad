@@ -103,11 +103,6 @@ module deployer::deployer {
         // this fails...
         // collect_fee(deployer);
 
-        // destroy caps
-        // fungible_asset::destroy_transfer_ref(&transfer_ref);
-        // fungible_asset::destroy_burn_ref(&burn_ref);
-        // std::drop(&transfer_ref);
-
         assert!(primary_fungible_store::balance(deployer_addr, get_metadata(&signer::address_of(deployer), symbol)) == total_supply, ERROR_NOT_INITIALIZED);
     }
     public fun get_metadata(adr: &address, symbol: vector<u8>): Object<Metadata> {
