@@ -66,12 +66,12 @@ module deployer::deployer {
     entry public fun generate_asset(
         deployer: &signer,
         name: String,
-        symbol: vector<u8>,
+        symbol: String,
         decimals: u8,
         total_supply: u64,
         icon: String,
         project: String
-    ){        
+    ) {        
         // only allowed after the deployer is initialized
         assert!(exists<Config>(@deployer), ERROR_INVALID_ACCOUNT);
         // for some reason this fails because APT isnt upto-date with the CoinLookup
@@ -81,14 +81,14 @@ module deployer::deployer {
         // );
 
         let deployer_addr = signer::address_of(deployer);
-        let constructor_ref = &object::create_named_object(deployer, symbol);
+        let constructor_ref = &object::create_named_object(deployer, *string::bytes(&symbol));
         
         // Create the FA's Metadata with your name, symbol, icon, etc.
         primary_fungible_store::create_primary_store_enabled_fungible_asset(
             constructor_ref,
             option::none(),
             name,
-            string::utf8(symbol),
+            symbol,
             decimals,
             icon, /* icon */
             project, /* project */
@@ -103,17 +103,21 @@ module deployer::deployer {
         // this fails...
         // collect_fee(deployer);
 
-        assert!(primary_fungible_store::balance(deployer_addr, get_metadata(&signer::address_of(deployer), symbol)) == total_supply, ERROR_NOT_INITIALIZED);
+        assert!(primary_fungible_store::balance(deployer_addr, get_metadata(signer::address_of(deployer), symbol)) == total_supply, ERROR_NOT_INITIALIZED);
     }
-    public fun get_metadata(adr: &address, symbol: vector<u8>): Object<Metadata> {
-        let asset_address = object::create_object_address(adr, symbol);
+    #[view]
+    public fun get_metadata(adr: address, symbol:String): Object<Metadata> {
+        let asset_address = object::create_object_address(&adr, *string::bytes(&symbol));
         object::address_to_object<Metadata>(asset_address)
     }
     // fun collect_fee(deployer: &signer) acquires Config {
     //     let config = borrow_global_mut<Config>(@deployer);
     //     primary_fungible_store::transfer(deployer,object::address_to_object<Metadata>(@aptos_framework),  config.owner, config.fee);
     // }
-
+    #[view]
+    public fun get_asset_address(owner_address: address, symbol: String) : address{
+        object::create_object_address(&owner_address, *string::bytes(&symbol))
+    }
     // #[view]
     // public fun owner_address(metadata: Metadata): address {
     //     Object::
@@ -129,30 +133,43 @@ module deployer::deployer {
         move_to(deployer, Config { owner, fee });
     }
 
-    #[test(aptos_framework = @0x1, deployer = @deployer, user = @0x123)]
-    fun test_user_deploys_asset(
-        aptos_framework: signer,
-        deployer: signer,
-        user: &signer,
-    ) {
-        aptos_framework::account::create_account_for_test(signer::address_of(&deployer));
-        init(&deployer, 1, signer::address_of(&deployer));
-        // aptos_framework::aptos_coin::mint(&aptos_framework, signer::address_of(&deployer), 1000);
-        
+    #[test(aptos_framework = @0x1, user = @0x123, deployer = @deployer)]
+    fun test_deploy(deployer: &signer, user: signer){
+        init(deployer, 1, signer::address_of(deployer));
         generate_asset(
-            &deployer,
-            string::utf8(b"Fake nex"),
-            b"nex",
-            4,
-            1000000,
-            string::utf8(b"www.someshit.com/"),
-            string::utf8(b"www.someshit.com/")
+            &user,
+            string::utf8(b"HELLO"),
+            string::utf8(b"HELL"),
+            8,
+            69,
+            string::utf8(b"www.hello.com/"),
+            string::utf8(b"www.hello.com/")
         );
+        let asset_address = get_asset_address(signer::address_of(&user), string::utf8(b"HELL"));
+        assert!(option::extract(&mut fungible_asset::supply(object::address_to_object<Metadata>(asset_address))) == 69, 1);
+    }
 
-        assert!(primary_fungible_store::balance(signer::address_of(&deployer), get_metadata(&signer::address_of(&deployer), b"nex")) == 1000000, 1);
+    #[test(aptos_framework = @0x1, deployer = @deployer, owner_address = @0x123, from = @0x696, to = @0x789)]
+    fun test_transfer(deployer: &signer, owner_address: signer, from: signer, to: signer){
+        init(deployer, 1, signer::address_of(deployer));
+        generate_asset(
+            &owner_address,
+            string::utf8(b"HELLO"),
+            string::utf8(b"HELL"),
+            8,
+            69,
+            string::utf8(b"www.hello.com/"),
+            string::utf8(b"www.hello.com/")
+        );
+        let asset_address = get_asset_address(signer::address_of(&owner_address), string::utf8(b"HELL"));
+        assert!(option::extract(&mut fungible_asset::supply(object::address_to_object<Metadata>(asset_address))) == 69, 1);
 
-        // should not fail...
-        let _metadata = get_metadata(&signer::address_of(&deployer), b"nex");
-
+        let asset_metadata = get_metadata(signer::address_of(&owner_address), string::utf8(b"HELL"));
+        primary_fungible_store::transfer(&owner_address, asset_metadata, signer::address_of(&to), 1);
+        
+        assert!(primary_fungible_store::balance(signer::address_of(&owner_address), asset_metadata) == 68 && primary_fungible_store::balance(signer::address_of(&to), asset_metadata) == 1, 1);
+    
+        primary_fungible_store::transfer(&to, asset_metadata, signer::address_of(&from) , 1);
+        assert!(primary_fungible_store::balance(signer::address_of(&from), asset_metadata) == 1 && primary_fungible_store::balance(signer::address_of(&to), asset_metadata) == 0, 1);
     }
 }
