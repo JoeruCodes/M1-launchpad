@@ -110,6 +110,11 @@ module deployer::deployer {
         let asset_address = object::create_object_address(&adr, *string::bytes(&symbol));
         object::address_to_object<Metadata>(asset_address)
     }
+
+    #[view]
+    public fun get_metadata_from_asset_address(adr: address): Object<Metadata>{
+        object::address_to_object<Metadata>(adr)
+    }
     // fun collect_fee(deployer: &signer) acquires Config {
     //     let config = borrow_global_mut<Config>(@deployer);
     //     primary_fungible_store::transfer(deployer,object::address_to_object<Metadata>(@aptos_framework),  config.owner, config.fee);
