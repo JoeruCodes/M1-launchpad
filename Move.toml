@@ -5,12 +5,9 @@ authors = []
 
 [addresses]
 deployer = "_"
-
 [dev-addresses]
 
 [dependencies.AptosFramework]
 git = "https://github.com/aptos-labs/aptos-core.git"
 rev = "mainnet"
 subdir = "aptos-move/framework/aptos-framework"
-
-[dev-dependencies]
